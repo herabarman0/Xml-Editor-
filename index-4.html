@@ -1,0 +1,2321 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>XML Live Preview Pro — HeraSoft</title>
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0b0d14" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+    <!-- CodeMirror CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/foldgutter.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.css" />
+
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #0b0d14; --panel: #13172a; --panel2: #1a1f3a; --panel3: #22284a;
+            --border: #2c3250; --border-light: #3a4166; --text: #e8ecf9; --text-secondary: #99a0c9;
+            --muted: #6a7199; --accent: #3ddc84; --accent-dim: #2a9d5f; --accent-glow: rgba(61,220,132,.15);
+            --error: #ff5d7a; --error-bg: #2b1420; --warn: #ffb454; --warn-bg: #2b2114;
+            --radius: 10px; --radius-sm: 6px; --shadow: 0 12px 40px rgba(0,0,0,.6);
+            --font-mono: 'JetBrains Mono', monospace; --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-sans); overflow: hidden; }
+        body { display: flex; flex-direction: column; height: 100vh; }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: var(--panel); }
+        ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
+
+        header {
+            padding: 10px 20px; border-bottom: 1px solid var(--border);
+            background: linear-gradient(180deg, #13182a, #0b0d14); flex-shrink: 0;
+            display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px;
+        }
+        header .brand { display: flex; align-items: center; gap: 10px; }
+        header .brand .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); flex-shrink: 0; }
+        header h1 { font-size: 18px; font-weight: 700; letter-spacing: -.3px; background: linear-gradient(135deg,#fff,#a0b4e0); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        header .badge { font-size: 10px; background: var(--accent-dim); color: #04140a; padding: 2px 12px; border-radius: 20px; font-weight: 600; -webkit-text-fill-color: #04140a; }
+        header .actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+        header .actions .shortcut-hint { font-size: 10px; color: var(--muted); background: var(--panel2); padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border); }
+
+        .toolbar { display: flex; gap: 6px; padding: 6px 16px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--border); background: var(--panel); flex-shrink: 0; }
+        .toolbar select, .toolbar button {
+            background: var(--panel2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm);
+            padding: 5px 10px; font-size: 12px; font-family: var(--font-sans); cursor: pointer; transition: all .15s;
+            display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+        }
+        .toolbar select:hover, .toolbar button:hover { border-color: var(--accent-dim); background: var(--panel3); }
+        .toolbar button.primary { border-color: var(--accent-dim); color: var(--accent); }
+        .toolbar button.primary:hover { background: var(--accent-dim); color: #04140a; }
+        .toolbar button.danger { color: var(--error); border-color: #5d2a3a; }
+        .toolbar button.danger:hover { background: var(--error-bg); border-color: var(--error); }
+        .toolbar .sep { width: 1px; height: 22px; background: var(--border); flex-shrink: 0; }
+
+        .workspace { display: flex; flex: 1; min-height: 0; gap: 0; position: relative; }
+        @media (max-width: 899px) { .workspace { flex-direction: column; } }
+        /* "ওয়াইড ভিউ" বাটনে চাপলে — normal mobile viewport-এই পাশাপাশি
+           লেআউট জোর করে দেখায়, ব্রাউজারের "Desktop site" মোডের দরকার
+           পড়ে না, তাই সেই মোডের অটো-জুম সমস্যাও হয় না। */
+        .workspace.force-wide { flex-direction: row !important; }
+        .workspace.force-wide .resize-handle { width: 6px !important; height: auto !important; cursor: col-resize !important; }
+        .workspace.force-wide .resize-handle::after { transform: translate(-50%, -50%) !important; }
+
+        .resize-handle {
+            width: 6px; background: var(--border); cursor: col-resize; flex-shrink: 0; transition: background .2s; position: relative; z-index: 10;
+            touch-action: none;
+        }
+        .resize-handle:hover, .resize-handle.active { background: var(--accent-dim); }
+        .resize-handle::after { content: '⋮'; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); color: var(--muted); font-size: 14px; opacity: .5; }
+        @media (max-width: 899px) {
+            .resize-handle { width: 100%; height: 6px; cursor: row-resize; }
+            .resize-handle::after { transform: translate(-50%,-50%) rotate(90deg); }
+        }
+
+        .editor-pane { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; background: var(--bg); position: relative; overflow: hidden; }
+        .editor-pane .pane-header { display: flex; justify-content: space-between; align-items: center; padding: 4px 14px; background: var(--panel); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .editor-pane .pane-header .label { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+        .editor-pane .pane-header .info { font-size: 10px; color: var(--text-secondary); font-family: var(--font-mono); }
+
+        .editor-wrap { display: flex; flex: 1; min-height: 0; position: relative; overflow: hidden; }
+
+        .CodeMirror {
+            height: 100% !important; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.55;
+            padding-top: 10px; background: #080a12 !important; color: #dbe2ff;
+        }
+        .CodeMirror-gutters { background: #080a12 !important; border-right: 1px solid var(--border) !important; min-width: 36px; }
+        .CodeMirror-lines { background-image: repeating-linear-gradient(to right, transparent, transparent 23px, rgba(255,255,255,0.09) 23px, rgba(255,255,255,0.09) 24px); padding-bottom: 40px; }
+        .CodeMirror-activeline-background { background: rgba(61,220,132,0.05); }
+        .CodeMirror-matchingbracket { color: #fff !important; background: var(--accent-dim); outline: 1px solid var(--accent-dim); }
+
+        /* Custom hint dropdown styling to match theme */
+        .CodeMirror-hints {
+            font-family: var(--font-mono); font-size: 12px; background: #161b30 !important;
+            border: 1px solid var(--border-light) !important; box-shadow: var(--shadow);
+            border-radius: 6px; padding: 4px 0; z-index: 999;
+        }
+        .CodeMirror-hint { color: #cdd6f4 !important; padding: 4px 12px !important; }
+        li.CodeMirror-hint-active { background: var(--accent-dim) !important; color: #04140a !important; }
+
+        #xmlInput { display: none; }
+        /* মোবাইল ব্রাউজারে (ডেক্সটপ মোড সহ) কোডে ক্লিক করলেই অটো-জুম হয়ে
+           যাওয়ার আসল কারণ: CodeMirror-এর আসল <textarea>-টার ফন্ট-সাইজ
+           16px-এর কম হলে Chrome/Safari নিজে থেকেই জুম করে ফেলে। এখানে
+           শুধু ওই লুকানো textarea-র ফন্ট-সাইজ 16px করে দিলাম — দৃশ্যমান
+           কোডের ফন্ট-সাইজ একই থাকবে, শুধু ক্লিক করলে আর জুম হবে না। */
+        .CodeMirror textarea {
+            font-size: 16px !important;
+        }
+
+        .preview-pane { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; background: var(--bg); }
+        .preview-pane .pane-header { display: flex; justify-content: space-between; align-items: center; padding: 4px 14px; background: var(--panel); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .preview-pane .pane-header .label { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+        .preview-pane .pane-header .info { font-size: 10px; color: var(--text-secondary); }
+
+        .preview-scroll {
+            flex: 1; overflow: auto; display: flex; justify-content: center; align-items: flex-start;
+            padding: 16px 12px 24px; background: radial-gradient(ellipse at 50% 20%, #141a30, #080a14 80%);
+        }
+        .phone-frame {
+            width: 360px; min-width: 260px; max-width: 100%; border-radius: 32px; background: #05060a; padding: 10px;
+            box-shadow: 0 12px 40px rgba(0,0,0,.7), inset 0 0 0 1px var(--border); height: fit-content; flex-shrink: 0;
+            transition: width .25s ease, transform .2s ease; transform-origin: top center;
+        }
+        .phone-statusbar {
+            height: 22px; background: #000; border-radius: 16px 16px 0 0; display: flex; align-items: center;
+            justify-content: space-between; padding: 0 16px; font-size: 9px; color: #8fffb0; font-family: var(--font-mono); font-weight: 500;
+        }
+        #previewRoot {
+            background: #ffffff; color: #1a1a1a; min-height: 480px; max-height: 560px; overflow: auto;
+            border-radius: 0 0 16px 16px; font-family: 'Roboto', 'Inter', system-ui, sans-serif; position: relative;
+        }
+        #previewRoot::-webkit-scrollbar { width: 4px; }
+        #previewRoot::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+        #previewRoot .empty-state { padding: 48px 20px; color: #aaa; font-size: 13px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        #previewRoot .empty-state .icon { font-size: 28px; opacity: .3; }
+
+        .status-area { border-top: 1px solid var(--border); background: var(--panel); flex-shrink: 0; }
+        .status-bar { padding: 6px 16px; font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 10px; font-family: var(--font-sans); min-height: 34px; }
+        .status-bar.ok { color: var(--accent); }
+        .status-bar.error { color: var(--error); background: var(--error-bg); }
+        .status-bar .status-icon { font-size: 14px; }
+        .status-bar .status-msg { flex: 1; }
+        .status-bar .status-meta { font-size: 10px; color: var(--muted); font-weight: 400; }
+        .error-detail { padding: 4px 16px 10px; font-size: 12px; color: #ff9caf; font-family: var(--font-mono); white-space: pre-wrap; word-break: break-word; background: var(--error-bg); border-top: 1px solid #3d1a28; display: none; }
+        .error-detail.visible { display: block; }
+        .warn-list { padding: 4px 16px 10px; background: var(--warn-bg); border-top: 1px solid #3d2a14; display: none; }
+        .warn-list.visible { display: block; }
+        .warn-item { font-size: 12px; color: var(--warn); padding: 3px 0 3px 12px; border-left: 2px solid var(--warn); margin-top: 3px; font-family: var(--font-mono); }
+
+        .workspace.fullscreen .editor-pane { flex: 1; }
+        .workspace.fullscreen .preview-pane { display: none; }
+        .workspace.fullscreen .resize-handle { display: none; }
+
+        .av-textview, .av-button, .av-edittext { font-size: 14px; }
+        .av-button {
+            background: #3ddc84; color: #04140a; border-radius: 4px; text-align: center; font-weight: 600;
+            text-transform: uppercase; padding: 10px 16px; display: inline-flex; align-items: center;
+            justify-content: center; border: none; cursor: default; min-height: 36px;
+        }
+        .av-edittext { border-bottom: 1.5px solid #9e9e9e; padding: 8px 4px; color: #444; background: transparent; min-height: 32px; }
+        .av-imageview {
+            background: repeating-linear-gradient(45deg,#e8e8e8,#e8e8e8 6px,#f2f2f2 6px,#f2f2f2 12px);
+            display: flex; align-items: center; justify-content: center; color: #aaa; font-size: 10px;
+            min-height: 60px; min-width: 60px; border-radius: 2px;
+        }
+        .av-checkbox, .av-radiobutton, .av-switch { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 4px 0; }
+        .av-checkbox input, .av-radiobutton input, .av-switch input { accent-color: #3ddc84; width: 18px; height: 18px; cursor: default; }
+        .av-progressbar { height: 4px; background: #e0e0e0; border-radius: 2px; overflow: hidden; position: relative; min-height: 4px; }
+        .av-progressbar::after {
+            content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 40%; background: #3ddc84;
+            animation: av-load 1.4s infinite ease-in-out; border-radius: 2px;
+        }
+        @keyframes av-load { 0% { left: -40%; width: 30%; } 50% { width: 60%; } 100% { left: 100%; width: 30%; } }
+        .av-seekbar { height: 4px; background: #e0e0e0; border-radius: 2px; position: relative; min-height: 4px; }
+        .av-seekbar::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 30%; background: #3ddc84; border-radius: 2px; }
+        .av-seekbar::before { content: '●'; position: absolute; left: 28%; top: 50%; transform: translate(-50%,-50%); font-size: 14px; color: #3ddc84; }
+        .av-id-tag {
+            position: absolute; top: -1px; left: -1px; font-size: 7px; background: #3ddc84; color: #04140a;
+            padding: 0 5px; border-radius: 0 0 4px 0; font-family: var(--font-mono); opacity: .8; z-index: 5; font-weight: 600; pointer-events: none;
+        }
+        .av-unknown { border: 1px dashed #cc4b4b; color: #cc4b4b; font-size: 10px; padding: 8px; background: rgba(204,75,75,.06); border-radius: 4px; }
+        .av-linearlayout, .av-relative-layout, .av-framelayout, .av-constraintlayout { display: flex; flex-wrap: wrap; width: 100%; }
+        .av-linearlayout { flex-direction: column; }
+        .av-linearlayout[data-orientation="horizontal"] { flex-direction: row; }
+        .av-relative-layout, .av-framelayout, .av-constraintlayout { flex-direction: column; gap: 6px; position: relative; }
+        .av-cardview { border-radius: 8px; padding: 12px; background: #fafafa; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+
+        @media (max-width: 600px) {
+            header h1 { font-size: 15px; }
+            .phone-statusbar { font-size: 8px; padding: 0 10px; height: 18px; }
+            .toolbar { padding: 4px 8px; gap: 4px; }
+            .toolbar select, .toolbar button { font-size: 11px; padding: 4px 8px; }
+            .CodeMirror { font-size: 11px; padding: 6px 10px 30px; }
+            .status-bar { font-size: 11px; padding: 4px 12px; }
+        }
+        @media (max-width: 400px) {
+            header .badge { display: none; }
+        }
+
+        .fullscreen-btn {
+            background: none; border: 1px solid var(--border); color: var(--text-secondary); border-radius: var(--radius-sm);
+            padding: 4px 8px; font-size: 14px; cursor: pointer; transition: all .15s; line-height: 1;
+        }
+        .fullscreen-btn:hover { background: var(--panel3); border-color: var(--accent-dim); color: var(--accent); }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand">
+            <span class="dot"></span>
+            <h1>XML Live Preview <span class="badge">Pro</span></h1>
+        </div>
+        <div class="actions">
+            <span class="shortcut-hint">Hera Barman</span>
+            <button class="fullscreen-btn" id="installBtn" title="অ্যাপ হিসেবে ইনস্টল করুন" style="display:none;">📲 ইনস্টল</button>
+            <button class="fullscreen-btn" id="fullscreenToggle" title="ফুলস্ক্রিন টগল (F11)">⛶</button>
+        </div>
+    </header>
+
+    <div class="toolbar">
+        <select id="sampleSelect">
+            <option value="">📂 স্যাম্পল</option>
+            <option value="linear">LinearLayout</option>
+            <option value="relative">RelativeLayout</option>
+            <option value="constraint">ConstraintLayout</option>
+            <option value="form">লগইন ফর্ম</option>
+            <option value="complex">জটিল লেআউট</option>
+            <option value="card">কার্ড ডিজাইন</option>
+            <option value="media">🖼️ ছবি/ভিডিও টেস্ট</option>
+            <option value="instagram">📸 ইনস্টাগ্রাম স্টাইল ফিড</option>
+        </select>
+
+        <span class="sep"></span>
+
+        <button class="primary" id="formatBtn" title="ফরম্যাট (⌘⇧F)">◧ ফরম্যাট</button>
+        <button id="copyBtn" title="কপি (⌘C)">⎘ কপি</button>
+        <button id="downloadBtn" title="ডাউনলোড">⬇ ডাউনলোড</button>
+        <button id="popoutBtn" title="আলাদা উইন্ডোতে রান করো">⧉ নতুন উইন্ডো</button>
+
+        <span class="sep"></span>
+
+        <button class="danger" id="clearBtn">✕ খালি</button>
+
+        <span class="sep"></span>
+
+        <select id="deviceSelect" title="ডিভাইস স্ক্রিন সাইজ">
+            <option value="320">📱 Small (320px)</option>
+            <option value="360" selected>📱 Normal (360px)</option>
+            <option value="412">📱 Large (412px)</option>
+            <option value="600">📟 Tablet (600px)</option>
+        </select>
+
+        <select id="zoomSelect">
+            <option value="0.8">80%</option>
+            <option value="1" selected>100%</option>
+            <option value="1.2">120%</option>
+            <option value="1.5">150%</option>
+        </select>
+    </div>
+
+    <div class="workspace" id="workspace">
+
+        <section class="editor-pane" id="editorPane">
+            <div class="pane-header">
+                <span class="label">✎ XML কোড</span>
+                <span class="info" id="editorInfo">লাইন ১ · ০ অক্ষর</span>
+            </div>
+            <div class="editor-wrap">
+                <textarea id="xmlInput" spellcheck="false" autocapitalize="off" autocorrect="off" wrap="off"></textarea>
+            </div>
+        </section>
+
+        <div class="resize-handle" id="resizeHandle"></div>
+
+        <section class="preview-pane" id="previewPane">
+            <div class="pane-header">
+                <span class="label">📱 লাইভ প্রিভিউ</span>
+                <span class="info" id="previewInfo">Android লেআউট</span>
+            </div>
+            <div class="preview-scroll">
+                <div class="phone-frame" id="phoneFrame">
+                    <div class="phone-statusbar"><span>9:41</span><span>●●●</span></div>
+                    <div id="previewRoot">
+                        <div class="empty-state">
+                            <span class="icon">📄</span>
+                            <span>এখানে XML লিখলে প্রিভিউ দেখাবে</span>
+                            <span style="font-size:11px;color:#888;">স্যাম্পল সিলেক্ট করে শুরু করুন</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div class="status-area">
+        <div id="statusBar" class="status-bar ok">
+            <span class="status-icon">✓</span>
+            <span class="status-msg">প্রস্তুত</span>
+            <span class="status-meta" id="statusMeta"></span>
+        </div>
+        <div id="errorDetail" class="error-detail"></div>
+        <div id="warnList" class="warn-list"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/xml-fold.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closetag.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/xml-hint.min.js"></script>
+
+    <script>
+        (function() {
+            'use strict';
+
+            const previewRoot = document.getElementById('previewRoot');
+            const statusBar = document.getElementById('statusBar');
+            const errorDetail = document.getElementById('errorDetail');
+            const warnList = document.getElementById('warnList');
+            const sampleSelect = document.getElementById('sampleSelect');
+            const clearBtn = document.getElementById('clearBtn');
+            const formatBtn = document.getElementById('formatBtn');
+            const copyBtn = document.getElementById('copyBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const popoutBtn = document.getElementById('popoutBtn');
+            const editorInfo = document.getElementById('editorInfo');
+            const previewInfo = document.getElementById('previewInfo');
+            const zoomSelect = document.getElementById('zoomSelect');
+            const deviceSelect = document.getElementById('deviceSelect');
+            const phoneFrame = document.getElementById('phoneFrame');
+            const workspace = document.getElementById('workspace');
+            const resizeHandle = document.getElementById('resizeHandle');
+            const editorPane = document.getElementById('editorPane');
+            const previewPane = document.getElementById('previewPane');
+            const fullscreenToggle = document.getElementById('fullscreenToggle');
+
+            // ═══════════════════════════════════════════════
+            // XML ইনডেন্ট হিসাব — ট্যাগ নেস্টিং গণনা করে সঠিক
+            // ইনডেন্ট বের করে, CodeMirror-এর ডিফল্ট bracket-
+            // alignment (যেটা কার্সরকে মাঝখানে নিয়ে যাচ্ছিল) ব্যবহার
+            // না করে। প্রতিটা attribute সবসময় ট্যাগের ৪-স্পেস
+            // নিচে সোজা লাইনে বসবে — Android Studio-র মতো।
+            // ═══════════════════════════════════════════════
+            function computeXmlIndent(cm, cursorLine, cursorCh) {
+                const fullText = cm.getRange({ line: 0, ch: 0 }, { line: cursorLine, ch: cursorCh });
+                let depth = 0;
+                let inTag = false;
+                let tagIsClosing = false;
+                let inQuote = null;
+                for (let i = 0; i < fullText.length; i++) {
+                    const c = fullText[i];
+                    if (inQuote) {
+                        if (c === inQuote) inQuote = null;
+                        continue;
+                    }
+                    if (c === '"' || c === "'") { inQuote = c; continue; }
+                    if (!inTag) {
+                        if (c === '<') {
+                            if (fullText.slice(i, i + 4) === '<!--') {
+                                const end = fullText.indexOf('-->', i);
+                                if (end === -1) { break; }
+                                i = end + 2;
+                                continue;
+                            }
+                            inTag = true;
+                            tagIsClosing = fullText[i + 1] === '/';
+                        }
+                    } else {
+                        if (c === '>') {
+                            const selfClose = fullText[i - 1] === '/';
+                            if (tagIsClosing) depth = Math.max(0, depth - 1);
+                            else if (!selfClose) depth++;
+                            inTag = false;
+                        }
+                    }
+                }
+                // কার্সর যদি এখনো একটা ওপেন ট্যাগের attribute অংশে থাকে
+                // (যেমন <Button লেখার পর এখনো '>' আসেনি), তাহলে
+                // attribute-গুলো ট্যাগের চেয়ে ১ ধাপ (৪ স্পেস) গভীরে বসবে।
+                if (inTag && !tagIsClosing) return depth * 4 + 4;
+                return depth * 4;
+            }
+
+            // ─── Initialize CodeMirror ──────────────────────
+            const editor = CodeMirror.fromTextArea(document.getElementById('xmlInput'), {
+                mode: 'xml',
+                theme: 'dracula',
+                lineNumbers: true,
+                lineWrapping: false,
+                styleActiveLine: true,
+                matchBrackets: true,
+                autoCloseTags: { whenClosing: true, whenOpening: true, indentTags: [] },
+                autoCloseBrackets: "()[]\"\"''",
+                indentUnit: 4,
+                tabSize: 4,
+                extraKeys: {
+                    "Ctrl-Space": "autocomplete",
+                    "Tab": function(cm) {
+                        if (cm.somethingSelected()) cm.indentSelection("add");
+                        else cm.replaceSelection("    ", "end");
+                    },
+                    "Enter": function(cm) {
+                        const cur = cm.getCursor();
+                        const indent = computeXmlIndent(cm, cur.line, cur.ch);
+                        cm.replaceSelection('\n' + ' '.repeat(indent));
+                    },
+                    "Backspace": function(cm) {
+                        if (cm.somethingSelected()) { cm.replaceSelection(''); return; }
+                        const cur = cm.getCursor();
+                        const line = cm.getLine(cur.line);
+                        const before = line.slice(0, cur.ch);
+                        // কার্সরের আগে যদি শুধুই স্পেস থাকে, তাহলে ৪-স্পেস
+                        // ব্লকে (ইনডেন্ট ইউনিট) ডিলিট করবে — একটার পর একটা
+                        // স্পেস নয়, যাতে লাইন বরাবর সোজা ইনডেন্ট বজায় থাকে।
+                        if (before.length > 0 && /^\s+$/.test(before)) {
+                            const rem = before.length % 4 || 4;
+                            cm.replaceRange('', CodeMirror.Pos(cur.line, cur.ch - rem), cur);
+                        } else {
+                            cm.execCommand('delCharBefore');
+                        }
+                    }
+                },
+                hintOptions: { completeSingle: false }
+            });
+
+            const getVal = () => editor.getValue();
+            const setVal = (v) => editor.setValue(v);
+
+            let warnings = [];
+            let renderTimer = null;
+            let resizeActive = false;
+
+            // ─── Android attribute / value dictionary for smart suggest ──
+            const ANDROID_ATTRS = [
+                'android:id','android:layout_width','android:layout_height',
+                'android:layout_margin','android:layout_marginTop','android:layout_marginBottom',
+                'android:layout_marginStart','android:layout_marginEnd','android:layout_marginLeft','android:layout_marginRight',
+                'android:padding','android:paddingTop','android:paddingBottom',
+                'android:paddingStart','android:paddingEnd','android:paddingLeft','android:paddingRight',
+                'android:text','android:hint','android:textColor','android:textColorHint','android:textSize',
+                'android:textStyle','android:background','android:orientation',
+                'android:gravity','android:layout_gravity','android:layout_weight',
+                'android:visibility','android:elevation','android:borderRadius',
+                'android:inputType','android:contentDescription','android:checked',
+                'android:src','android:scaleType','android:maxLines','android:ellipsize',
+                'android:clickable','android:focusable','android:enabled','android:layout_below',
+                'android:layout_above','android:layout_toStartOf','android:layout_toEndOf',
+                'android:layout_alignParentTop','android:layout_alignParentBottom',
+                'android:layout_alignParentStart','android:layout_alignParentEnd',
+                'android:layout_centerInParent','android:layout_centerHorizontal','android:layout_centerVertical',
+                'android:cardBackgroundColor','android:max','android:progress','android:singleLine',
+                'android:fontFamily','android:letterSpacing','android:lineSpacingExtra',
+                'android:layout_alignParentLeft','android:layout_alignParentRight'
+            ];
+
+            const ATTR_VALUES = {
+                'android:layout_width': ['match_parent','wrap_content','0dp'],
+                'android:layout_height': ['match_parent','wrap_content','0dp'],
+                'android:orientation': ['vertical','horizontal'],
+                'android:visibility': ['visible','invisible','gone'],
+                'android:textStyle': ['normal','bold','italic','bold|italic'],
+                'android:inputType': ['text','textEmailAddress','textPassword','number','phone','textMultiLine'],
+                'android:gravity': ['center','center_vertical','center_horizontal','left','right','top','bottom','start','end'],
+                'android:layout_gravity': ['center','left','right','top','bottom','start','end'],
+                'android:scaleType': ['centerCrop','centerInside','fitXY','fitCenter','center'],
+                'android:ellipsize': ['end','start','middle','marquee'],
+                'android:checked': ['true','false'],
+                'android:clickable': ['true','false'],
+                'android:focusable': ['true','false'],
+                'android:enabled': ['true','false'],
+                'android:singleLine': ['true','false']
+            };
+
+            const COLOR_NAMES = ['#FFFFFF','#000000','#3ddc84','#F5F7FA','#F0F2F5','#1a1a2e','#888888'];
+
+            function customXmlHint(cm) {
+                const cur = cm.getCursor();
+                const line = cm.getLine(cur.line);
+                const before = line.slice(0, cur.ch);
+
+                // ১. মান (value) সাজেশন — attr="টাইপ_করা_অংশ
+                const valMatch = before.match(/(android:[a-zA-Z_]+)="([a-zA-Z0-9_%.#]*)$/);
+                if (valMatch) {
+                    const attr = valMatch[1];
+                    const typed = valMatch[2];
+                    let options = ATTR_VALUES[attr] || [];
+                    if (/color/i.test(attr)) options = options.concat(COLOR_NAMES);
+                    options = options.filter(v => v.toLowerCase().startsWith(typed.toLowerCase()));
+                    if (options.length) {
+                        return {
+                            list: options,
+                            from: CodeMirror.Pos(cur.line, cur.ch - typed.length),
+                            to: cur
+                        };
+                    }
+                    return null;
+                }
+
+                // ২. attribute নাম সাজেশন — a / an / android: ইত্যাদি লিখলে
+                const attrMatch = before.match(/([a-zA-Z:_]+)$/);
+                if (attrMatch && attrMatch[1].length > 0) {
+                    const typed = attrMatch[1];
+                    const options = ANDROID_ATTRS.filter(a => a.toLowerCase().startsWith(typed.toLowerCase()));
+                    if (options.length) {
+                        return {
+                            list: options.map(a => a + '="'),
+                            from: CodeMirror.Pos(cur.line, cur.ch - typed.length),
+                            to: cur
+                        };
+                    }
+                }
+
+                // ৩. ফলব্যাক — ডিফল্ট XML ট্যাগ hint (< লেখার পর)
+                return CodeMirror.hint.xml(cm);
+            }
+
+            let hintTimer = null;
+            editor.on("inputRead", function(cm, change) {
+                if (cm.state.completionActive) return;
+                if (!change.text || !change.text.length) return;
+                const ch = change.text[change.text.length - 1];
+                if (!ch) return;
+
+                clearTimeout(hintTimer);
+                hintTimer = setTimeout(function() {
+                    if (cm.state.completionActive) return;
+                    if (ch === "<") {
+                        cm.showHint({ hint: CodeMirror.hint.xml, completeSingle: false });
+                    } else if (/[a-zA-Z0-9:_"#]/.test(ch)) {
+                        cm.showHint({ hint: customXmlHint, completeSingle: false });
+                    }
+                }, 25);
+            });
+
+            // ─── SAMPLES ─────────────────────────────────────
+            const SAMPLES = {
+                linear: `<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:background="#FFFFFF">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="স্বাগতম, HeraSoft!"
+        android:textColor="#1a1a2e"
+        android:textSize="22sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="এটা একটা লাইভ প্রিভিউ"
+        android:textColor="#666"
+        android:textSize="14sp" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:text="শুরু করো" />
+
+</LinearLayout>`,
+
+                relative: `<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="20dp"
+    android:background="#F5F7FA">
+
+    <TextView
+        android:id="@+id/title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="RelativeLayout উদাহরণ"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="#1a1a2e" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/title"
+        android:layout_marginTop="8dp"
+        android:text="এলিমেন্টগুলো একে অপরের সাথে সম্পর্কিত"
+        android:textColor="#666"
+        android:textSize="13sp" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/title"
+        android:layout_marginTop="40dp"
+        android:text="নিচের বাটন" />
+
+</RelativeLayout>`,
+
+                constraint: `<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="24dp"
+    android:background="#FFFFFF">
+
+    <ImageView
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:contentDescription="লোগো" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="ConstraintLayout ডেমো"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="#1a1a2e" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="শক্তিশালী লেআউট সিস্টেম"
+        android:textColor="#666"
+        android:textSize="13sp" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>`,
+
+                form: `<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="#FFFFFF">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="লগইন করুন"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="#1a1a2e" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="আপনার অ্যাকাউন্টে প্রবেশ করুন"
+        android:textColor="#888"
+        android:textSize="13sp" />
+
+    <EditText
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:hint="ইমেইল"
+        android:inputType="textEmailAddress"
+        android:padding="12dp"
+        android:background="#F0F2F5"
+        android:borderRadius="8dp" />
+
+    <EditText
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:hint="পাসওয়ার্ড"
+        android:inputType="textPassword"
+        android:padding="12dp"
+        android:background="#F0F2F5"
+        android:borderRadius="8dp" />
+
+    <Button
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="প্রবেশ করো"
+        android:background="#3ddc84"
+        android:textColor="#04140a"
+        android:padding="14dp"
+        android:borderRadius="8dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="নতুন? অ্যাকাউন্ট তৈরি করো"
+        android:textColor="#3ddc84"
+        android:textSize="13sp"
+        android:layout_gravity="center" />
+
+</LinearLayout>`,
+
+                complex: `<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#F5F7FA"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="#FFFFFF"
+        android:padding="16dp"
+        android:elevation="2dp"
+        android:borderRadius="8dp">
+
+        <ImageView
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:contentDescription="প্রোফাইল" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="সাদিক হোসেন"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#1a1a2e" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="সফটওয়্যার ডেভেলপার"
+                android:textSize="12sp"
+                android:textColor="#888" />
+        </LinearLayout>
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ফলো"
+            android:background="#3ddc84"
+            android:textColor="#04140a"
+            android:padding="8dp 16dp"
+            android:borderRadius="20dp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:orientation="horizontal"
+        android:background="#FFFFFF"
+        android:padding="16dp"
+        android:borderRadius="8dp"
+        android:elevation="2dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="১.২কে"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="#1a1a2e" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="ফলোয়ার"
+                android:textSize="11sp"
+                android:textColor="#888" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="৮৪"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="#1a1a2e" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="পোস্ট"
+                android:textSize="11sp"
+                android:textColor="#888" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="৩২"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="#1a1a2e" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="প্রকল্প"
+                android:textSize="11sp"
+                android:textColor="#888" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:orientation="vertical"
+        android:background="#FFFFFF"
+        android:padding="16dp"
+        android:borderRadius="8dp"
+        android:elevation="2dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="প্রগতি"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#1a1a2e" />
+
+        <ProgressBar
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="৪০% সম্পন্ন"
+            android:textSize="11sp"
+            android:textColor="#888"
+            android:layout_gravity="end" />
+    </LinearLayout>
+
+</LinearLayout>`,
+
+                card: `<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="#EEF1F5">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#FFFFFF"
+        android:padding="16dp"
+        android:borderRadius="12dp"
+        android:elevation="3dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📌 ব্রেকিং নিউজ"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#1a1a2e" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="আজকের সবচেয়ে গুরুত্বপূর্ণ আপডেট এখানে দেখুন"
+            android:textColor="#555"
+            android:textSize="13sp" />
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="বিস্তারিত"
+            android:background="#3ddc84"
+            android:textColor="#04140a"
+            android:padding="8dp 20dp"
+            android:borderRadius="20dp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:orientation="horizontal"
+        android:background="#FFFFFF"
+        android:padding="16dp"
+        android:borderRadius="12dp"
+        android:elevation="3dp"
+        android:gravity="center_vertical">
+
+        <CheckBox
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="নোটিফিকেশন চালু রাখুন"
+            android:textColor="#1a1a2e"
+            android:textSize="13sp" />
+
+        <Switch
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="auto" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:orientation="vertical"
+        android:background="#FFFFFF"
+        android:padding="16dp"
+        android:borderRadius="12dp"
+        android:elevation="3dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📊 সাপ্তাহিক পরিসংখ্যান"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#1a1a2e" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="দেখা হয়েছে"
+                android:textSize="11sp"
+                android:textColor="#888"
+                android:gravity="center" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="লাইক"
+                android:textSize="11sp"
+                android:textColor="#888"
+                android:gravity="center" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="শেয়ার"
+                android:textSize="11sp"
+                android:textColor="#888"
+                android:gravity="center" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="4dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="২.৪কে"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#1a1a2e"
+                android:gravity="center" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="৩২১"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#1a1a2e"
+                android:gravity="center" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="৮৯"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#1a1a2e"
+                android:gravity="center" />
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>`,
+
+                media: `<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="#F5F7FA">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🖼️ ছবি টেস্ট (ImageView)"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:textColor="#1a1a2e" />
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="180dp"
+        android:layout_marginTop="8dp"
+        android:src="https://picsum.photos/seed/herasoft/600/400"
+        android:scaleType="centerCrop"
+        android:contentDescription="টেস্ট ছবি" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:text="🖼️ ব্যাকগ্রাউন্ড ইমেজ (যেকোনো ভিউতে)"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:textColor="#1a1a2e" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:layout_marginTop="8dp"
+        android:background="https://picsum.photos/seed/hera2/600/300"
+        android:borderRadius="8dp"
+        android:gravity="center">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="এই টেক্সট ছবির উপরে"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:text="🎬 ভিডিও টেস্ট (VideoView)"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:textColor="#1a1a2e" />
+
+    <VideoView
+        android:layout_width="match_parent"
+        android:layout_height="160dp"
+        android:layout_marginTop="8dp"
+        android:src="https://www.w3schools.com/html/mov_bbb.mp4" />
+
+</LinearLayout>`,
+
+                instagram: `<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#FFFFFF">
+
+    <!-- ── টপ বার ── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:gravity="center_vertical"
+        android:background="#FFFFFF">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Error.Mind"
+            android:textSize="22sp"
+            android:textStyle="bold|italic"
+            android:textColor="#1a1a2e" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="❤️"
+            android:textSize="20sp"
+            android:layout_marginEnd="16dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="✈️"
+            android:textSize="20sp" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#EDEDED" />
+
+    <!-- ── স্টোরি রো ── -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#FFFFFF">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="10dp">
+
+            <LinearLayout
+                android:layout_width="70dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_marginEnd="12dp">
+
+                <LinearLayout
+                    android:layout_width="64dp"
+                    android:layout_height="64dp"
+                    android:background="#EFEFEF"
+                    android:borderRadius="32dp"
+                    android:gravity="center">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="+"
+                        android:textSize="26sp"
+                        android:textColor="#3ddc84"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="তোমার স্টোরি"
+                    android:textSize="10sp"
+                    android:textColor="#444"
+                    android:gravity="center" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="70dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_marginEnd="12dp"
+                android:background="#E1306C"
+                android:borderRadius="35dp"
+                android:padding="3dp">
+
+                <ImageView
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    android:src="https://picsum.photos/seed/hera1/150"
+                    android:scaleType="centerCrop"
+                    android:borderRadius="30dp"
+                    android:contentDescription="স্টোরি" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="70dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_marginEnd="12dp"
+                android:background="#FFC107"
+                android:borderRadius="35dp"
+                android:padding="3dp">
+
+                <ImageView
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    android:src="https://picsum.photos/seed/hera2/150"
+                    android:scaleType="centerCrop"
+                    android:borderRadius="30dp"
+                    android:contentDescription="স্টোরি" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="70dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_marginEnd="12dp"
+                android:background="#3ddc84"
+                android:borderRadius="35dp"
+                android:padding="3dp">
+
+                <ImageView
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    android:src="https://picsum.photos/seed/hera3/150"
+                    android:scaleType="centerCrop"
+                    android:borderRadius="30dp"
+                    android:contentDescription="স্টোরি" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="70dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:background="#FF5722"
+                android:borderRadius="35dp"
+                android:padding="3dp">
+
+                <ImageView
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    android:src="https://picsum.photos/seed/hera4/150"
+                    android:scaleType="centerCrop"
+                    android:borderRadius="30dp"
+                    android:contentDescription="স্টোরি" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#EDEDED" />
+
+    <!-- ── ফিড (স্ক্রলযোগ্য) ── -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#FFFFFF">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- ── পোস্ট ১ (ছবি) ── -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginBottom="14dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="10dp"
+                    android:gravity="center_vertical">
+
+                    <ImageView
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:src="https://picsum.photos/seed/luckyhera/150"
+                        android:scaleType="centerCrop"
+                        android:borderRadius="18dp"
+                        android:contentDescription="প্রোফাইল" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="10dp"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="error.mind"
+                            android:textSize="13sp"
+                            android:textStyle="bold"
+                            android:textColor="#1a1a2e" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="ঢাকা, বাংলাদেশ"
+                            android:textSize="10sp"
+                            android:textColor="#888" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⋯"
+                        android:textSize="18sp"
+                        android:textColor="#333" />
+                </LinearLayout>
+
+                <ImageView
+                    android:layout_width="match_parent"
+                    android:layout_height="280dp"
+                    android:src="https://picsum.photos/seed/heraposta/600/600"
+                    android:scaleType="centerCrop"
+                    android:contentDescription="পোস্ট ছবি" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="10dp"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🤍"
+                        android:textSize="22sp"
+                        android:layout_marginEnd="14dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="💬"
+                        android:textSize="20sp"
+                        android:layout_marginEnd="14dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📤"
+                        android:textSize="20sp" />
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_weight="1" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🔖"
+                        android:textSize="20sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:text="১,২০৪ লাইক"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="#1a1a2e" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_marginTop="4dp"
+                    android:text="error.mind  নতুন ভিডিও আপলোড হয়েছে! লিংক বায়োতে 🔥✨"
+                    android:textSize="12sp"
+                    android:textColor="#1a1a2e" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_marginTop="3dp"
+                    android:text="সব ৩৪টি কমেন্ট দেখুন"
+                    android:textSize="11sp"
+                    android:textColor="#888" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_marginTop="4dp"
+                    android:text="২ ঘন্টা আগে"
+                    android:textSize="9sp"
+                    android:textColor="#aaa" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="6dp"
+                android:background="#F5F5F5" />
+
+            <!-- ── পোস্ট ২ (ভিডিও) ── -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginBottom="14dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="10dp"
+                    android:gravity="center_vertical">
+
+                    <ImageView
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:src="https://picsum.photos/seed/herasoftdev/150"
+                        android:scaleType="centerCrop"
+                        android:borderRadius="18dp"
+                        android:contentDescription="প্রোফাইল" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="10dp"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="herasoft.dev"
+                            android:textSize="13sp"
+                            android:textStyle="bold"
+                            android:textColor="#1a1a2e" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="মোবাইল থেকে তৈরি 📱"
+                            android:textSize="10sp"
+                            android:textColor="#888" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⋯"
+                        android:textSize="18sp"
+                        android:textColor="#333" />
+                </LinearLayout>
+
+                <VideoView
+                    android:layout_width="match_parent"
+                    android:layout_height="260dp"
+                    android:src="https://www.w3schools.com/html/mov_bbb.mp4" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="10dp"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="❤️"
+                        android:textSize="20sp"
+                        android:layout_marginEnd="14dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="💬"
+                        android:textSize="20sp"
+                        android:layout_marginEnd="14dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📤"
+                        android:textSize="20sp" />
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_weight="1" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🔖"
+                        android:textSize="20sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:text="৮৯২ লাইক"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="#1a1a2e" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_marginTop="4dp"
+                    android:text="herasoft.dev  CodeAssist দিয়ে ফোনে বসে নতুন অ্যাপ বানানো 🚀"
+                    android:textSize="12sp"
+                    android:textColor="#1a1a2e" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_marginTop="4dp"
+                    android:text="৫ ঘন্টা আগে"
+                    android:textSize="9sp"
+                    android:textColor="#aaa" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#EDEDED" />
+
+    <!-- ── নিচের ন্যাভিগেশন বার ── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:orientation="horizontal"
+        android:background="#FFFFFF"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="🏠"
+            android:textSize="20sp"
+            android:gravity="center" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="🔍"
+            android:textSize="20sp"
+            android:gravity="center" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="➕"
+            android:textSize="20sp"
+            android:gravity="center" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="🎬"
+            android:textSize="20sp"
+            android:gravity="center" />
+
+        <ImageView
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:layout_weight="1"
+            android:src="https://picsum.photos/seed/luckyhera/150"
+            android:scaleType="centerCrop"
+            android:borderRadius="13dp"
+            android:contentDescription="আমার প্রোফাইল" />
+    </LinearLayout>
+
+</LinearLayout>`
+            };
+
+            // ─── COLOR HELPERS ───────────────────────────────
+            const NAMED_COLORS = {
+                white: '#FFFFFF', black: '#000000', red: '#FF0000', green: '#00FF00',
+                blue: '#0000FF', gray: '#888888', grey: '#888888', lightgray: '#D3D3D3',
+                darkgray: '#444444', yellow: '#FFEB3B', transparent: 'transparent',
+                cyan: '#00FFFF', magenta: '#FF00FF'
+            };
+
+            function resolveColor(val) {
+                if (!val) return null;
+                val = val.trim();
+                if (val.startsWith('@')) return '#e0e0e0';
+                if (val.startsWith('#')) return val;
+                if (NAMED_COLORS[val.toLowerCase()]) return NAMED_COLORS[val.toLowerCase()];
+                return null;
+            }
+
+            // ─── ছবি/ভিডিও টেস্ট সাপোর্ট ─────────────────────
+            // android:src বা android:background-এ সরাসরি http(s):// লিংক
+            // দিলে সেই আসল ছবি/ভিডিও প্রিভিউতে দেখাবে। @drawable/xxx এর
+            // মতো লোকাল রিসোর্স রেন্ডার করা সম্ভব না (ব্রাউজারে ফাইলটা
+            // নেই), তবে ওয়েব থেকে যেকোনো ইমেজ/ভিডিও URL টেস্ট করা যাবে।
+            function isImageUrl(val) {
+                return !!val && /^https?:\/\//i.test(val.trim());
+            }
+            function applyImageBackground(el, url, scaleType) {
+                el.style.backgroundImage = `url('${url}')`;
+                el.style.backgroundPosition = 'center';
+                el.style.backgroundRepeat = 'no-repeat';
+                if (scaleType === 'fitXY') el.style.backgroundSize = '100% 100%';
+                else if (scaleType === 'centerCrop' || !scaleType) el.style.backgroundSize = 'cover';
+                else if (scaleType === 'fitCenter' || scaleType === 'centerInside') el.style.backgroundSize = 'contain';
+                else el.style.backgroundSize = 'cover';
+            }
+
+            function toPx(val) {
+                if (!val) return null;
+                const m = val.trim().match(/^(-?\d+(?:\.\d+)?)(dp|dip|sp|px)?$/);
+                if (!m) return null;
+                return parseFloat(m[1]) + 'px';
+            }
+
+            function checkWarnings(el, tag) {
+                const w = el.getAttribute('android:layout_width');
+                const h = el.getAttribute('android:layout_height');
+                if (!w) warnings.push(`<${tag}> এ android:layout_width দেওয়া হয়নি`);
+                if (!h) warnings.push(`<${tag}> এ android:layout_height দেওয়া হয়নি`);
+            }
+
+            function buildNode(node) {
+                if (node.nodeType !== 1) return null;
+                const fullTag = node.tagName;
+                const tag = fullTag.split('.').pop();
+                checkWarnings(node, tag);
+
+                const div = document.createElement('div');
+                const id = node.getAttribute('android:id');
+                if (id) {
+                    const tagEl = document.createElement('span');
+                    tagEl.className = 'av-id-tag';
+                    const idClean = id.replace('@+id/', '').replace('@id/', '');
+                    tagEl.textContent = idClean.length > 12 ? idClean.slice(0, 10) + '…' : idClean;
+                    div.style.position = 'relative';
+                    div.appendChild(tagEl);
+                }
+
+                const w = node.getAttribute('android:layout_width');
+                const h = node.getAttribute('android:layout_height');
+
+                // "0dp" শুধু android:layout_weight-এর সাথেই ব্যবহার হয় —
+                // এর মানে "নিজের কনটেন্ট সাইজ উপেক্ষা করো, বাকি জায়গা থেকে
+                // ভাগ নাও"। flexbox-এ এটা সঠিকভাবে কাজ করতে হলে size 0
+                // আর min-width/min-height:0 দুটোই লাগবে (নাহলে ছবি/টেক্সটের
+                // নিজস্ব সাইজ flex-grow-কে ওভাররাইড করে ফেলে — এই কারণেই
+                // spacer View ঠিক জায়গায় বসছিল না আর 0dp+weight ScrollView
+                // পুরো উচ্চতা পাচ্ছিল না)।
+                if (w === 'match_parent' || w === 'fill_parent') div.style.width = '100%';
+                else if (w === 'wrap_content' || !w) div.style.width = 'fit-content';
+                else if (w === '0dp') { div.style.width = '0'; div.style.minWidth = '0'; }
+                else {
+                    const px = toPx(w);
+                    if (px) div.style.width = px;
+                    else div.style.width = 'auto';
+                }
+
+                if (h === 'match_parent' || h === 'fill_parent') div.style.height = '100%';
+                else if (h === 'wrap_content' || !h) div.style.height = 'auto';
+                else if (h === '0dp') { div.style.height = '0'; div.style.minHeight = '0'; }
+                else {
+                    const px = toPx(h);
+                    if (px) div.style.height = px;
+                    else div.style.height = 'auto';
+                }
+
+                ['', 'Top', 'Bottom', 'Start', 'End', 'Left', 'Right'].forEach(dir => {
+                    const pv = toPx(node.getAttribute('android:padding' + dir));
+                    if (pv) {
+                        const map = { '': 'padding', 'Top': 'paddingTop', 'Bottom': 'paddingBottom',
+                            'Start': 'paddingLeft', 'End': 'paddingRight', 'Left': 'paddingLeft',
+                            'Right': 'paddingRight' };
+                        div.style[map[dir]] = pv;
+                    }
+                    const mv = toPx(node.getAttribute('android:layout_margin' + dir));
+                    if (mv) {
+                        const map = { '': 'margin', 'Top': 'marginTop', 'Bottom': 'marginBottom',
+                            'Start': 'marginLeft', 'End': 'marginRight', 'Left': 'marginLeft',
+                            'Right': 'marginRight' };
+                        div.style[map[dir]] = mv;
+                    }
+                });
+
+                const bgRaw = node.getAttribute('android:background');
+                if (isImageUrl(bgRaw)) {
+                    applyImageBackground(div, bgRaw.trim(), null);
+                } else {
+                    const bg = resolveColor(bgRaw);
+                    if (bg) div.style.background = bg;
+                }
+                const visibility = node.getAttribute('android:visibility');
+                if (visibility === 'gone') { div.style.display = 'none'; return div; }
+                if (visibility === 'invisible') { div.style.visibility = 'hidden'; }
+
+                const weight = node.getAttribute('android:layout_weight');
+                if (weight) div.style.flexGrow = weight;
+
+                const elev = node.getAttribute('android:elevation');
+                if (elev) {
+                    const val = parseFloat(elev);
+                    if (!isNaN(val)) {
+                        div.style.boxShadow = `0 ${Math.min(val, 8)}px ${Math.min(val * 2, 24)}px rgba(0,0,0,${Math.min(val / 20, .15)})`;
+                    }
+                }
+
+                const radius = node.getAttribute('android:borderRadius');
+                if (radius) {
+                    const px = toPx(radius);
+                    if (px) div.style.borderRadius = px;
+                }
+
+                const containerTags = ['LinearLayout', 'RelativeLayout', 'FrameLayout', 'ConstraintLayout',
+                    'ScrollView', 'HorizontalScrollView', 'GridLayout', 'TableLayout', 'TableRow', 'CardView'
+                ];
+                const leafTags = ['TextView', 'Button', 'EditText', 'ImageView', 'ImageButton', 'CheckBox',
+                    'RadioButton', 'Switch', 'ProgressBar', 'SeekBar', 'Space', 'View', 'VideoView'
+                ];
+
+                if (containerTags.includes(tag)) {
+                    div.classList.add('av-' + tag.toLowerCase().replace(/_/g, '-'));
+                    div.style.display = 'flex';
+                    div.style.flexWrap = 'wrap';
+
+                    if (tag === 'LinearLayout') {
+                        const orientation = node.getAttribute('android:orientation') || 'vertical';
+                        div.style.flexDirection = orientation === 'vertical' ? 'column' : 'row';
+                        div.dataset.orientation = orientation;
+                        const gravity = node.getAttribute('android:gravity');
+                        if (gravity) {
+                            if (gravity.includes('center')) { div.style.alignItems = 'center'; div.style.justifyContent = 'center'; }
+                            if (gravity.includes('right') || gravity.includes('end')) div.style.alignItems = 'flex-end';
+                            if (gravity.includes('left') || gravity.includes('start')) div.style.alignItems = 'flex-start';
+                            if (gravity.includes('bottom')) div.style.justifyContent = 'flex-end';
+                            if (gravity.includes('top')) div.style.justifyContent = 'flex-start';
+                        }
+                    } else if (tag === 'RelativeLayout' || tag === 'ConstraintLayout' || tag === 'FrameLayout') {
+                        div.style.flexDirection = 'column';
+                        div.style.gap = '6px';
+                        div.style.position = 'relative';
+                        const gravity = node.getAttribute('android:gravity');
+                        if (gravity) {
+                            if (gravity.includes('center')) { div.style.alignItems = 'center'; div.style.justifyContent = 'center'; }
+                            if (gravity.includes('right') || gravity.includes('end')) div.style.alignItems = 'flex-end';
+                            if (gravity.includes('left') || gravity.includes('start')) div.style.alignItems = 'flex-start';
+                        }
+                    } else if (tag === 'ScrollView') {
+                        div.style.flexDirection = 'column';
+                        div.style.overflow = 'auto';
+                        div.style.maxHeight = '100%';
+                    } else if (tag === 'CardView') {
+                        div.classList.add('av-cardview');
+                        div.style.flexDirection = 'column';
+                        const bg2 = resolveColor(node.getAttribute('android:cardBackgroundColor'));
+                        if (bg2) div.style.background = bg2;
+                    } else {
+                        div.style.flexDirection = 'column';
+                    }
+
+                    Array.from(node.children).forEach(child => {
+                        const childEl = buildNode(child);
+                        if (childEl) div.appendChild(childEl);
+                    });
+                } else if (leafTags.includes(tag)) {
+                    div.classList.add('av-' + tag.toLowerCase());
+                    const text = node.getAttribute('android:text');
+                    const hint = node.getAttribute('android:hint');
+                    const textColor = resolveColor(node.getAttribute('android:textColor'));
+                    const textSize = toPx(node.getAttribute('android:textSize'));
+                    const textStyle = node.getAttribute('android:textStyle');
+                    const gravity = node.getAttribute('android:gravity');
+
+                    if (tag === 'TextView') {
+                        div.textContent = text ? (text.startsWith('@') ? '[' + text.replace('@string/', '') + ']' : text) : 'TextView';
+                    } else if (tag === 'Button') {
+                        div.textContent = text || 'Button';
+                        const bg2 = resolveColor(node.getAttribute('android:background'));
+                        if (bg2 && bg2 !== '#FFFFFF') div.style.background = bg2;
+                        const tc = resolveColor(node.getAttribute('android:textColor'));
+                        if (tc) div.style.color = tc;
+                    } else if (tag === 'EditText') {
+                        div.textContent = hint || text || 'EditText';
+                        div.style.color = hint ? '#9e9e9e' : '#333';
+                        const bg2 = resolveColor(node.getAttribute('android:background'));
+                        if (bg2 && bg2 !== '#FFFFFF') div.style.background = bg2;
+                    } else if (tag === 'ImageView' || tag === 'ImageButton') {
+                        div.textContent = '';
+                        div.style.minHeight = '60px';
+                        div.style.minWidth = '60px';
+                        const src = node.getAttribute('android:src') || node.getAttribute('app:srcCompat');
+                        if (isImageUrl(src)) {
+                            const scaleType = node.getAttribute('android:scaleType');
+                            applyImageBackground(div, src.trim(), scaleType);
+                        } else {
+                            const bg2 = resolveColor(node.getAttribute('android:background'));
+                            if (bg2 && bg2 !== '#FFFFFF') div.style.background = bg2;
+                            if (src) {
+                                div.style.fontSize = '9px';
+                                div.style.color = '#999';
+                                div.textContent = '🖼 ' + src.replace('@drawable/', '');
+                            }
+                        }
+                    } else if (tag === 'VideoView') {
+                        div.style.minHeight = '140px';
+                        div.style.background = '#000';
+                        div.style.display = 'flex';
+                        div.style.alignItems = 'center';
+                        div.style.justifyContent = 'center';
+                        div.style.borderRadius = '4px';
+                        const src = node.getAttribute('android:src') || node.getAttribute('app:src');
+                        if (isImageUrl(src)) {
+                            const video = document.createElement('video');
+                            video.src = src.trim();
+                            video.controls = true;
+                            video.style.width = '100%';
+                            video.style.height = '100%';
+                            video.style.borderRadius = '4px';
+                            div.appendChild(video);
+                        } else {
+                            div.innerHTML = '<span style="color:#999;font-size:11px;">🎬 ভিডিও (android:src এ http(s) URL দিন)</span>';
+                        }
+                    } else if (tag === 'CheckBox') {
+                        const checked = node.getAttribute('android:checked') === 'true';
+                        div.innerHTML = `<input type="checkbox" disabled ${checked ? 'checked' : ''}> <span>${text || 'CheckBox'}</span>`;
+                        div.style.display = 'flex'; div.style.alignItems = 'center'; div.style.gap = '6px';
+                    } else if (tag === 'RadioButton') {
+                        const checked = node.getAttribute('android:checked') === 'true';
+                        div.innerHTML = `<input type="radio" disabled ${checked ? 'checked' : ''}> <span>${text || 'RadioButton'}</span>`;
+                        div.style.display = 'flex'; div.style.alignItems = 'center'; div.style.gap = '6px';
+                    } else if (tag === 'Switch') {
+                        const checked = node.getAttribute('android:checked') === 'true';
+                        div.innerHTML = `<input type="checkbox" disabled ${checked ? 'checked' : ''} style="accent-color:#3ddc84;width:36px;height:20px;border-radius:10px;"> <span>${text || 'Switch'}</span>`;
+                        div.style.display = 'flex'; div.style.alignItems = 'center'; div.style.gap = '8px';
+                    } else if (tag === 'ProgressBar') {
+                        div.style.width = '100%'; div.style.minHeight = '4px';
+                    } else if (tag === 'SeekBar') {
+                        div.style.width = '100%'; div.style.minHeight = '4px'; div.classList.add('av-seekbar');
+                    } else if (tag === 'Space' || tag === 'View') {
+                        div.style.minHeight = '8px';
+                        if (tag === 'View' && !node.getAttribute('android:background')) {
+                            div.style.background = 'rgba(0,0,0,0.04)';
+                            div.style.borderRadius = '2px';
+                        }
+                    }
+
+                    if (textColor) div.style.color = textColor;
+                    if (textSize) div.style.fontSize = textSize;
+                    if (textStyle) {
+                        if (textStyle.includes('bold')) div.style.fontWeight = '700';
+                        if (textStyle.includes('italic')) div.style.fontStyle = 'italic';
+                    }
+                    if (gravity) {
+                        if (gravity.includes('center')) div.style.textAlign = 'center';
+                        if (gravity.includes('right') || gravity.includes('end')) div.style.textAlign = 'right';
+                        if (gravity.includes('left') || gravity.includes('start')) div.style.textAlign = 'left';
+                    }
+                } else {
+                    div.classList.add('av-unknown');
+                    div.textContent = `অজানা ট্যাগ: <${fullTag}>`;
+                }
+
+                const layoutGravity = node.getAttribute('android:layout_gravity');
+                if (layoutGravity) {
+                    if (layoutGravity.includes('center')) { div.style.alignSelf = 'center'; }
+                    if (layoutGravity.includes('right') || layoutGravity.includes('end')) { div.style.alignSelf = 'flex-end'; }
+                    if (layoutGravity.includes('left') || layoutGravity.includes('start')) { div.style.alignSelf = 'flex-start'; }
+                }
+
+                return div;
+            }
+
+            function render() {
+                clearTimeout(renderTimer);
+                renderTimer = setTimeout(doRender, 150);
+            }
+
+            function doRender() {
+                const xmlText = getVal();
+                warnings = [];
+
+                if (!xmlText.trim()) {
+                    previewRoot.innerHTML = `<div class="empty-state"><span class="icon">📄</span><span>এখানে XML লিখলে প্রিভিউ দেখাবে</span><span style="font-size:11px;color:#888;">স্যাম্পল সিলেক্ট করে শুরু করুন</span></div>`;
+                    setStatus(true, 'ফাঁকা');
+                    warnList.classList.remove('visible');
+                    warnList.innerHTML = '';
+                    updateEditorInfo();
+                    return;
+                }
+
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(xmlText, 'application/xml');
+                const parseError = doc.querySelector('parsererror');
+
+                if (parseError) {
+                    const errMsg = parseError.textContent || 'XML পার্সিং এরর';
+                    setStatus(false, errMsg);
+                    errorDetail.textContent = errMsg;
+                    errorDetail.classList.add('visible');
+                    warnList.classList.remove('visible');
+                    previewRoot.innerHTML = `<div class="empty-state"><span class="icon">⚠️</span><span>XML এ এরর আছে</span><span style="font-size:11px;color:#ff9caf;">${errMsg.slice(0, 120)}</span></div>`;
+                    updateEditorInfo();
+                    return;
+                }
+
+                errorDetail.classList.remove('visible');
+
+                try {
+                    const rootEl = buildNode(doc.documentElement);
+                    previewRoot.innerHTML = '';
+                    if (rootEl) {
+                        rootEl.style.width = '100%';
+                        rootEl.style.minHeight = '480px';
+                        rootEl.style.padding = '4px';
+                        previewRoot.appendChild(rootEl);
+                    }
+                    setStatus(true, warnings.length > 0 ? `${warnings.length}টি সতর্কতা` : 'ঠিক আছে');
+                } catch (e) {
+                    setStatus(false, e.message || 'রেন্ডারিং এরর');
+                    errorDetail.textContent = e.message || 'অজানা এরর';
+                    errorDetail.classList.add('visible');
+                    previewRoot.innerHTML = `<div class="empty-state"><span class="icon">🔥</span><span>রেন্ডারিং এরর</span><span style="font-size:11px;color:#ff9caf;">${(e.message || '').slice(0, 120)}</span></div>`;
+                    updateEditorInfo();
+                    return;
+                }
+
+                if (warnings.length > 0) {
+                    warnList.innerHTML = '';
+                    warnings.slice(0, 8).forEach(w => {
+                        const d = document.createElement('div');
+                        d.className = 'warn-item';
+                        d.textContent = '⚠ ' + w;
+                        warnList.appendChild(d);
+                    });
+                    warnList.classList.add('visible');
+                } else {
+                    warnList.classList.remove('visible');
+                    warnList.innerHTML = '';
+                }
+
+                updateEditorInfo();
+                updatePreviewInfo();
+            }
+
+            function setStatus(ok, message) {
+                const icon = statusBar.querySelector('.status-icon');
+                const msg = statusBar.querySelector('.status-msg');
+                const meta = statusBar.querySelector('.status-meta');
+                if (ok) {
+                    statusBar.className = 'status-bar ok';
+                    icon.textContent = '✓';
+                    msg.textContent = message || 'প্রস্তুত';
+                    meta.textContent = `XML · ${getVal().trim().length} অক্ষর`;
+                } else {
+                    statusBar.className = 'status-bar error';
+                    icon.textContent = '✗';
+                    msg.textContent = 'এরর';
+                    meta.textContent = message ? message.slice(0, 60) : 'পার্সিং এরর';
+                }
+            }
+
+            function updateEditorInfo() {
+                const lines = getVal().split('\n').length;
+                const chars = getVal().length;
+                editorInfo.textContent = `লাইন ${lines} · ${chars} অক্ষর`;
+            }
+
+            function updatePreviewInfo() {
+                const hasContent = previewRoot.querySelector('.empty-state') === null;
+                previewInfo.textContent = hasContent ? '✅ রেন্ডার হয়েছে' : '⏳ ফাঁকা';
+            }
+
+            // ─── ফরম্যাটার — প্রফেশনাল লাইন-বাই-লাইন ইনডেন্ট ──
+            function formatXML(xml) {
+                try {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(xml, 'application/xml');
+                    if (doc.querySelector('parsererror')) return xml;
+
+                    const serializer = new XMLSerializer();
+                    const raw = serializer.serializeToString(doc);
+
+                    const tokens = raw.match(/<[^>]+>|[^<]+/g) || [];
+                    let indent = 0;
+                    let out = '';
+                    tokens.forEach(tok => {
+                        tok = tok.trim();
+                        if (!tok) return;
+                        const isClosing = /^<\//.test(tok);
+                        const isSelfClose = /\/>$/.test(tok);
+                        const isOpening = /^<[^\/!?]/.test(tok) && !isSelfClose;
+
+                        if (isClosing) indent = Math.max(0, indent - 1);
+                        out += '    '.repeat(indent) + tok + '\n';
+                        if (isOpening) indent++;
+                    });
+                    return out.trim();
+                } catch (e) { return xml; }
+            }
+
+            function formatAndRender() {
+                const formatted = formatXML(getVal());
+                if (formatted !== getVal()) {
+                    setVal(formatted);
+                    render();
+                } else {
+                    render();
+                }
+                editor.focus();
+            }
+
+            function initResize() {
+                // Pointer Events (mouse+touch+pen একসাথে হ্যান্ডল করে) এবং
+                // setPointerCapture ব্যবহার করছি যাতে ডেক্সটপ-মোড মোবাইল
+                // ব্রাউজারেও ড্র্যাগ করার সময় কো-অর্ডিনেট মিসম্যাচ না হয়
+                // এবং হ্যান্ডেল ছেড়ে দিলেও move ইভেন্ট হারিয়ে না যায়।
+                function onPointerDown(e) {
+                    resizeActive = true;
+                    resizeHandle.classList.add('active');
+                    try { resizeHandle.setPointerCapture(e.pointerId); } catch (err) {}
+
+                    const isVertical = window.matchMedia('(max-width: 899px)').matches;
+                    const startX = e.clientX;
+                    const startY = e.clientY;
+                    const startWidth = editorPane.getBoundingClientRect().width;
+                    const startHeight = editorPane.getBoundingClientRect().height;
+
+                    function onMove(ev) {
+                        if (!resizeActive) return;
+                        const containerRect = workspace.getBoundingClientRect();
+                        if (isVertical) {
+                            const delta = ev.clientY - startY;
+                            let newHeight = startHeight + delta;
+                            const minH = 80;
+                            const maxH = Math.max(minH, containerRect.height - 80);
+                            newHeight = Math.min(Math.max(newHeight, minH), maxH);
+                            editorPane.style.flex = '0 0 auto';
+                            editorPane.style.width = '';
+                            editorPane.style.height = newHeight + 'px';
+                            previewPane.style.flex = '1 1 auto';
+                        } else {
+                            const delta = ev.clientX - startX;
+                            let newWidth = startWidth + delta;
+                            const minW = 120;
+                            const maxW = Math.max(minW, containerRect.width - 120);
+                            newWidth = Math.min(Math.max(newWidth, minW), maxW);
+                            editorPane.style.flex = '0 0 auto';
+                            editorPane.style.height = '';
+                            editorPane.style.width = newWidth + 'px';
+                            previewPane.style.flex = '1 1 auto';
+                        }
+                        render();
+                        ev.preventDefault();
+                    }
+                    function onUp(ev) {
+                        resizeActive = false;
+                        resizeHandle.classList.remove('active');
+                        try { resizeHandle.releasePointerCapture(ev.pointerId); } catch (err) {}
+                        resizeHandle.removeEventListener('pointermove', onMove);
+                        resizeHandle.removeEventListener('pointerup', onUp);
+                        resizeHandle.removeEventListener('pointercancel', onUp);
+                    }
+                    resizeHandle.addEventListener('pointermove', onMove);
+                    resizeHandle.addEventListener('pointerup', onUp);
+                    resizeHandle.addEventListener('pointercancel', onUp);
+                    e.preventDefault();
+                }
+                function onDblClick() {
+                    // ডাবল-ক্লিকে ৫০/৫০ এ রিসেট
+                    editorPane.style.flex = '1';
+                    editorPane.style.width = '';
+                    editorPane.style.height = '';
+                    previewPane.style.flex = '1';
+                    render();
+                }
+                resizeHandle.addEventListener('pointerdown', onPointerDown);
+                resizeHandle.addEventListener('dblclick', onDblClick);
+            }
+
+            function toggleFullscreen() {
+                workspace.classList.toggle('fullscreen');
+                fullscreenToggle.textContent = '⛶';
+                setTimeout(() => { render(); }, 100);
+            }
+
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.shiftKey && e.key === 'F') {
+                    e.preventDefault();
+                    formatAndRender();
+                    return;
+                }
+                if (e.ctrlKey && e.key === 's') {
+                    e.preventDefault();
+                    downloadXML();
+                    return;
+                }
+                if (e.key === 'F11') {
+                    e.preventDefault();
+                    toggleFullscreen();
+                }
+            });
+
+            function copyXML() {
+                const text = getVal();
+                if (!text.trim()) return;
+                navigator.clipboard.writeText(text).then(() => {
+                    const msg = statusBar.querySelector('.status-msg');
+                    msg.textContent = '✅ কপি করা হয়েছে!';
+                    setTimeout(() => { msg.textContent = 'প্রস্তুত'; }, 1200);
+                }).catch(() => {
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    statusBar.querySelector('.status-msg').textContent = '✅ কপি করা হয়েছে!';
+                    setTimeout(() => { statusBar.querySelector('.status-msg').textContent = 'প্রস্তুত'; }, 1200);
+                });
+            }
+
+            function downloadXML() {
+                const text = getVal();
+                if (!text.trim()) return;
+                const blob = new Blob([text], { type: 'application/xml' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'layout.xml';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            // ─── আলাদা উইন্ডোতে লাইভ প্রিভিউ রান ──────────────
+            function openPopoutPreview() {
+                const w = window.open('', '_blank', 'width=440,height=780');
+                if (!w) {
+                    alert('পপআপ ব্লক করা আছে — ব্রাউজার সেটিংসে পপআপ অনুমতি দিন।');
+                    return;
+                }
+                const deviceW = deviceSelect.value + 'px';
+                w.document.open();
+                w.document.write(`<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>XML Live Preview — Popout</title>
+<style>
+    * { box-sizing: border-box; }
+    body {
+        margin: 0; min-height: 100vh; background: radial-gradient(ellipse at 50% 10%, #1a1f3a, #05060a 80%);
+        display: flex; justify-content: center; align-items: flex-start; padding: 24px 12px;
+        font-family: 'Inter', system-ui, sans-serif;
+    }
+    .frame {
+        width: ${deviceW}; max-width: 100%; background: #05060a; border-radius: 28px; padding: 8px;
+        box-shadow: 0 12px 40px rgba(0,0,0,.7);
+    }
+    .statusbar {
+        height: 20px; background: #000; border-radius: 14px 14px 0 0; display: flex; align-items: center;
+        justify-content: space-between; padding: 0 14px; font-size: 9px; color: #8fffb0;
+        font-family: monospace; font-weight: 500;
+    }
+    #root { background: #fff; color: #1a1a1a; min-height: 640px; border-radius: 0 0 14px 14px; overflow: auto; }
+    .reload-hint {
+        position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+        font-size: 11px; color: #6a7199; font-family: sans-serif;
+    }
+</style></head>
+<body>
+    <div class="frame">
+        <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+        <div id="root">${previewRoot.innerHTML}</div>
+    </div>
+    <div class="reload-hint">মূল ট্যাব থেকে "নতুন উইন্ডো" বাটনে চাপলে এখানে সবশেষ প্রিভিউ আপডেট হবে</div>
+</body></html>`);
+                w.document.close();
+            }
+
+            // ─── SAMPLE LOAD ─────────────────────────────────
+            sampleSelect.addEventListener('change', () => {
+                const v = sampleSelect.value;
+                if (v && SAMPLES[v]) {
+                    setVal(SAMPLES[v]);
+                    render();
+                }
+                sampleSelect.value = '';
+            });
+
+            clearBtn.addEventListener('click', () => {
+                setVal('');
+                render();
+                editor.focus();
+            });
+
+            formatBtn.addEventListener('click', formatAndRender);
+            copyBtn.addEventListener('click', copyXML);
+            downloadBtn.addEventListener('click', downloadXML);
+            popoutBtn.addEventListener('click', openPopoutPreview);
+            fullscreenToggle.addEventListener('click', toggleFullscreen);
+
+            editor.on('change', () => {
+                render();
+                updateEditorInfo();
+            });
+
+            // ─── ডিভাইস সাইজ পরিবর্তন ──────────────────────────
+            deviceSelect.addEventListener('change', () => {
+                phoneFrame.style.width = deviceSelect.value + 'px';
+            });
+
+            zoomSelect.addEventListener('change', () => {
+                const scale = parseFloat(zoomSelect.value);
+                phoneFrame.style.transform = `scale(${scale})`;
+                phoneFrame.style.transformOrigin = 'top center';
+            });
+
+            // ─── INIT ────────────────────────────────────────
+            setVal(SAMPLES.linear);
+            render();
+            editor.focus();
+            initResize();
+
+            let resizeTimer;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => { render(); }, 200);
+            });
+
+            window.__render = render;
+            window.__format = formatXML;
+            window.__editor = editor;
+
+            // ═══════════════════════════════════════════════
+            // PWA: "Add to Home Screen" ইনস্টল বাটন + সার্ভিস ওয়ার্কার
+            // ═══════════════════════════════════════════════
+            let deferredPrompt = null;
+            const installBtn = document.getElementById('installBtn');
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                if (installBtn) installBtn.style.display = 'inline-flex';
+            });
+            if (installBtn) {
+                installBtn.addEventListener('click', async () => {
+                    if (!deferredPrompt) return;
+                    deferredPrompt.prompt();
+                    await deferredPrompt.userChoice;
+                    deferredPrompt = null;
+                    installBtn.style.display = 'none';
+                });
+            }
+            window.addEventListener('appinstalled', () => {
+                if (installBtn) installBtn.style.display = 'none';
+            });
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/sw.js').catch(() => {});
+                });
+            }
+
+            // ═══════════════════════════════════════════════
+            // হালকা "সোর্স দেখা কঠিন করা" — এগুলো ডিটারেন্ট মাত্র,
+            // ১০০% সুরক্ষা নয়। ব্রাউজারের ডেভটুলস/নেটওয়ার্ক ট্যাব
+            // দিয়ে দেখতে চাইলে যেকোনো টেকনিক্যাল ব্যবহারকারী তা এড়িয়ে
+            // যেতে পারবেন — client-side কোড কখনোই সম্পূর্ণ লুকানো যায় না।
+            // ═══════════════════════════════════════════════
+            document.addEventListener('contextmenu', (e) => e.preventDefault());
+            document.addEventListener('keydown', (e) => {
+                const k = e.key;
+                if (k === 'F12') e.preventDefault();
+                if (e.ctrlKey && e.shiftKey && (k === 'I' || k === 'J' || k === 'C')) e.preventDefault();
+                if (e.ctrlKey && (k === 'U' || k === 'u')) e.preventDefault();
+            });
+
+        })();
+    </script>
+</body>
+</html>
